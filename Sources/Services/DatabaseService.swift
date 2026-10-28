@@ -100,15 +100,18 @@ final class DatabaseService {
         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);
         """
         var stmt: OpaquePointer?
-        sqlite3_prepare_v2(db, sql, -1, &stmt, nil)
+        guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { logError("insert/prepare"); return 0 }
         defer { sqlite3_finalize(stmt) }
-        
+
         bindApp(stmt, app, offset: 1)
-        sqlite3_step(stmt)
+        // Only trust last_insert_rowid when the step actually succeeded: on failure it still
+        // returns the previous row's id, which would alias the new card onto an existing one.
+        guard sqlite3_step(stmt) == SQLITE_DONE else { logError("insert/step"); return 0 }
         return Int(sqlite3_last_insert_rowid(db))
     }
-    
-    func update(_ app: Application) {
+
+    @discardableResult
+    func update(_ app: Application) -> Bool {
         let sql = """
         UPDATE applications SET empresa=?, cargo=?, url=?, plataforma=?, pais=?, modalidad=?, seniority=?,
             capturada=?, publicada=?, aplicada_en=?, cerrado_en=?, proximo_seguimiento=?,
@@ -118,21 +121,24 @@ final class DatabaseService {
         WHERE id=?;
         """
         var stmt: OpaquePointer?
-        sqlite3_prepare_v2(db, sql, -1, &stmt, nil)
+        guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { logError("update/prepare"); return false }
         defer { sqlite3_finalize(stmt) }
-        
+
         bindApp(stmt, app, offset: 1)
         sqlite3_bind_int64(stmt, 29, Int64(app.id))
-        sqlite3_step(stmt)
+        guard sqlite3_step(stmt) == SQLITE_DONE else { logError("update/step"); return false }
+        return true
     }
-    
-    func delete(id: Int) {
+
+    @discardableResult
+    func delete(id: Int) -> Bool {
         let sql = "DELETE FROM applications WHERE id=?;"
         var stmt: OpaquePointer?
-        sqlite3_prepare_v2(db, sql, -1, &stmt, nil)
+        guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { logError("delete/prepare"); return false }
+        defer { sqlite3_finalize(stmt) }
         sqlite3_bind_int64(stmt, 1, Int64(id))
-        sqlite3_step(stmt)
-        sqlite3_finalize(stmt)
+        guard sqlite3_step(stmt) == SQLITE_DONE else { logError("delete/step"); return false }
+        return true
     }
     
     func count(byColumn col: PipelineColumn) -> Int {
@@ -166,7 +172,11 @@ final class DatabaseService {
     }
     
     // MARK: - Helpers
-    
+
+    private func logError(_ op: String) {
+        NSLog("JobPipeline SQLite error (%@): %@", op, String(cString: sqlite3_errmsg(db)))
+    }
+
     private func bindApp(_ stmt: OpaquePointer?, _ app: Application, offset: Int32) {
         var i = offset
         sqlite3_bind_text(stmt, i, app.empresa, -1, SQLITE_TRANSIENT); i += 1

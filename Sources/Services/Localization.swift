@@ -200,6 +200,8 @@ private let en: [String: String] = [
     "Escanea las notas .md en la carpeta Applications/ del vault, parsea el frontmatter YAML y carga las aplicaciones a la base de datos local.": "Scans the .md notes in the vault's Applications/ folder, parses the YAML frontmatter and loads the applications into the local database.",
     "Ruta del vault": "Vault path",
     "Importadas %d aplicaciones.": "Imported %d applications.",
+    "%d ya existían (omitidas).": "%d already existed (skipped).",
+    "%d no se pudieron guardar.": "%d could not be saved.",
     
     // Help — sections
     "Las 5 columnas": "The 5 columns",

@@ -149,20 +149,23 @@ final class AppStore: ObservableObject {
         }
     }
     
-    func save(_ app: Application) {
+    /// Persists the card and mirrors it in memory only if the database accepted it.
+    @discardableResult
+    func save(_ app: Application) -> Bool {
         var updated = app
         updated.updatedAt = Date()
         if app.id == 0 {
             let newId = db.insert(updated)
-            guard newId > 0 else { return }   // insert failed → don't create a duplicate id=0 card
+            guard newId > 0 else { return false }   // insert failed → don't create a duplicate id=0 card
             updated.id = newId
             applications.append(updated)
         } else {
-            db.update(updated)
+            guard db.update(updated) else { return false }
             if let idx = applications.firstIndex(where: { $0.id == updated.id }) {
                 applications[idx] = updated
             }
         }
+        return true
     }
     
     func newApplication() {
@@ -172,7 +175,7 @@ final class AppStore: ObservableObject {
     
     func delete(_ app: Application) {
         guard app.id > 0 else { return }
-        db.delete(id: app.id)
+        guard db.delete(id: app.id) else { return }
         applications.removeAll { $0.id == app.id }
         if selectedApp?.id == app.id { selectedApp = nil }
     }
@@ -191,7 +194,7 @@ final class AppStore: ObservableObject {
         if column == .cerrada && updated.cerradoEn == nil {
             updated.cerradoEn = Date()
         }
-        db.update(updated)
+        guard db.update(updated) else { return }
         if let idx = applications.firstIndex(where: { $0.id == updated.id }) {
             applications[idx] = updated
         }

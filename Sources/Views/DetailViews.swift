@@ -271,10 +271,18 @@ struct ImportView: View {
     
     private func startImport() {
         importing = true
+        let path = vaultPath
         DispatchQueue.global().async {
             let importer = ImportService()
-            let count = importer.importFromVault(path: vaultPath, store: store)
-            DispatchQueue.main.async { status = L10n.fmt("Importadas %d aplicaciones.", count); importing = false }
+            let parsed = importer.parseVault(path: path)
+            DispatchQueue.main.async {
+                let r = importer.save(parsed, into: store)
+                var msg = L10n.fmt("Importadas %d aplicaciones.", r.imported)
+                if r.duplicates > 0 { msg += " " + L10n.fmt("%d ya existían (omitidas).", r.duplicates) }
+                if r.failed > 0 { msg += " " + L10n.fmt("%d no se pudieron guardar.", r.failed) }
+                status = msg
+                importing = false
+            }
         }
     }
 }
