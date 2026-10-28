@@ -1,6 +1,9 @@
 #!/bin/bash
 set -e
 
+# Run from the script's own folder so paths with spaces (e.g. "Job Pipeline App") work.
+cd "$(dirname "$0")"
+
 APP_NAME="JobPipeline"
 BUNDLE_ID="com.jobpipeline.app"
 BUILD_DIR="/tmp/${APP_NAME}_build"
@@ -19,8 +22,9 @@ mkdir -p "$MACOS" "$RESOURCES"
 
 # Compile
 echo "Compiling Swift sources..."
-SOURCES=$(find "$(dirname "$0")/Sources" -name "*.swift" | sort)
-echo "$SOURCES"
+SOURCES=()
+while IFS= read -r f; do SOURCES+=("$f"); done < <(find Sources -name "*.swift" | sort)
+printf '%s\n' "${SOURCES[@]}"
 
 swiftc \
     -sdk "$SDK" \
@@ -30,26 +34,26 @@ swiftc \
     -framework AppKit \
     -lsqlite3 \
     -o "$MACOS/$APP_NAME" \
-    $SOURCES
+    "${SOURCES[@]}"
 
 echo "Compiled OK"
 
 # Info.plist
-cp "$(dirname "$0")/Info.plist" "$CONTENTS/Info.plist"
+cp "Info.plist" "$CONTENTS/Info.plist"
 
 # Resources: asset catalog (light/dark icon) + icns fallback
-if [ -f "$(dirname "$0")/Resources/Assets.car" ]; then
-    cp "$(dirname "$0")/Resources/Assets.car" "$RESOURCES/Assets.car"
+if [ -f "Resources/Assets.car" ]; then
+    cp "Resources/Assets.car" "$RESOURCES/Assets.car"
 fi
-if [ -f "$(dirname "$0")/Resources/AppIcon.icns" ]; then
-    cp "$(dirname "$0")/Resources/AppIcon.icns" "$RESOURCES/AppIcon.icns"
+if [ -f "Resources/AppIcon.icns" ]; then
+    cp "Resources/AppIcon.icns" "$RESOURCES/AppIcon.icns"
 fi
 # Named light/dark variants for programmatic Dock icon
-if [ -f "$(dirname "$0")/Resources/pipeline-light.icns" ]; then
-    cp "$(dirname "$0")/Resources/pipeline-light.icns" "$RESOURCES/AppIcon-light.icns"
+if [ -f "Resources/pipeline-light.icns" ]; then
+    cp "Resources/pipeline-light.icns" "$RESOURCES/AppIcon-light.icns"
 fi
-if [ -f "$(dirname "$0")/Resources/pipeline-dark.icns" ]; then
-    cp "$(dirname "$0")/Resources/pipeline-dark.icns" "$RESOURCES/AppIcon-dark.icns"
+if [ -f "Resources/pipeline-dark.icns" ]; then
+    cp "Resources/pipeline-dark.icns" "$RESOURCES/AppIcon-dark.icns"
 fi
 
 # PkgInfo
