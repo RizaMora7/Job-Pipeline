@@ -64,6 +64,16 @@ private let en: [String: String] = [
     
     // Toolbar / buttons
     "Nueva": "New",
+    "Buscar empresa, cargo, tags…": "Search company, role, tags…",
+    "Todas las plataformas": "All platforms",
+    "Nota mínima": "Minimum score",
+    "Cualquier nota": "Any score",
+    "Nota": "Score",
+    "Cualquier modalidad": "Any work mode",
+    "Con seguimiento pendiente": "Follow-up pending",
+    "Limpiar": "Clear",
+    "de": "of",
+    "Sin coincidencias": "No matches",
     "Mover a": "Move to",
     "Abrir": "Open",
     "Eliminar": "Delete",

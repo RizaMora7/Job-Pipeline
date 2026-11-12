@@ -16,6 +16,12 @@ funnel.
 - **Five-column Kanban** — Por evaluar · Lista para aplicar · Aplicada · En proceso · Cerrada
   (To evaluate · Ready to apply · Applied · In progress · Closed).
 - **Drag & drop** between columns, or move via the card's context menu.
+- **Search & filters** — a toolbar search box (company, role, platform,
+  country, seniority, tags, next action; case- and accent-insensitive) plus a
+  filter bar for platform, minimum JobFit score, work mode and pending
+  follow-ups. Column headers show *visible/total* while filtering.
+- **Independent column scrolling** — each column scrolls on its own and its
+  header stays pinned, however many cards it holds.
 - **Rich per-card fields** — company, role, URL, platform, work mode, seniority,
   JobFit score, must-have requirement, strengths/gaps, follow-up date, next
   action, local paths to the CV / cover / screenshot you used, contacts, result

@@ -141,15 +141,24 @@ struct KanbanBoardView: View {
     @EnvironmentObject var store: AppStore
     
     var body: some View {
-        ScrollView(.horizontal, showsIndicators: true) {
-            HStack(alignment: .top, spacing: 12) {
-                ForEach(PipelineColumn.allCases) { col in
-                    ColumnView(column: col).frame(width: 250)
+        VStack(spacing: 0) {
+            FilterBar()
+            Divider()
+            // Horizontal scroll for the board; each column scrolls vertically on its own,
+            // so headers stay pinned no matter how many cards a column holds.
+            ScrollView(.horizontal, showsIndicators: true) {
+                HStack(alignment: .top, spacing: 12) {
+                    ForEach(PipelineColumn.allCases) { col in
+                        ColumnView(column: col).frame(width: 250)
+                    }
                 }
+                .padding()
+                .frame(maxHeight: .infinity, alignment: .top)
             }
-            .padding()
         }
         .background(Color(NSColor.controlBackgroundColor))
+        .searchable(text: $store.searchText, placement: .toolbar,
+                    prompt: loc("Buscar empresa, cargo, tags…"))
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button(action: { store.newApplication() }) {
@@ -161,6 +170,61 @@ struct KanbanBoardView: View {
     }
 }
 
+// MARK: - Filter Bar
+
+struct FilterBar: View {
+    @EnvironmentObject var store: AppStore
+    
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "line.3.horizontal.decrease.circle")
+                .foregroundColor(store.isFiltering ? .accentColor : .secondary)
+            
+            Picker(loc("Plataforma"), selection: $store.filterPlatform) {
+                Text(loc("Todas las plataformas")).tag(String?.none)
+                Divider()
+                ForEach(store.platformsInUse, id: \.self) { p in
+                    Text(p).tag(String?.some(p))
+                }
+            }
+            .labelsHidden().fixedSize()
+            
+            Picker(loc("Nota mínima"), selection: $store.filterMinNota) {
+                Text(loc("Cualquier nota")).tag(Double?.none)
+                Divider()
+                ForEach([5.0, 6.0, 7.0, 8.0], id: \.self) { n in
+                    Text("\(loc("Nota")) ≥ \(Int(n))").tag(Double?.some(n))
+                }
+            }
+            .labelsHidden().fixedSize()
+            
+            Picker(loc("Modalidad"), selection: $store.filterModalidad) {
+                Text(loc("Cualquier modalidad")).tag(Modalidad?.none)
+                Divider()
+                ForEach(Modalidad.allCases, id: \.self) { m in
+                    Text(loc(m.rawValue)).tag(Modalidad?.some(m))
+                }
+            }
+            .labelsHidden().fixedSize()
+            
+            Toggle(loc("Con seguimiento pendiente"), isOn: $store.filterFollowUp)
+                .toggleStyle(.checkbox)
+            
+            Spacer()
+            
+            if store.isFiltering {
+                Text("\(store.visibleCount) \(loc("de")) \(store.applications.count)")
+                    .font(.caption).foregroundColor(.secondary)
+                Button(loc("Limpiar")) { store.clearFilters() }
+                    .controlSize(.small)
+            }
+        }
+        .controlSize(.small)
+        .padding(.horizontal, 16).padding(.vertical, 6)
+        .background(Color(NSColor.windowBackgroundColor))
+    }
+}
+
 // MARK: - Column View
 
 struct ColumnView: View {
@@ -169,12 +233,14 @@ struct ColumnView: View {
     @State private var isTargeted = false
     
     var body: some View {
-        VStack(spacing: 0) {
+        let apps = store.visibleApps(in: column)
+        let total = store.apps(in: column).count
+        return VStack(spacing: 0) {
             HStack {
                 Circle().fill(accent).frame(width: 10, height: 10)
                 Text(column.displayName).font(.headline)
                 Spacer()
-                Text("\(store.apps(in: column).count)")
+                Text(store.isFiltering ? "\(apps.count)/\(total)" : "\(total)")
                     .font(.caption).bold()
                     .padding(.horizontal, 6).padding(.vertical, 2)
                     .background(Capsule().fill(accent.opacity(0.2)))
@@ -182,14 +248,22 @@ struct ColumnView: View {
             .padding(.horizontal, 10).padding(.vertical, 8)
             .background(accent.opacity(0.1))
             
-            VStack(spacing: 8) {
-                ForEach(store.apps(in: column)) { app in
-                    CardView(app: app, column: column)
+            ScrollView(.vertical, showsIndicators: true) {
+                LazyVStack(spacing: 8) {
+                    ForEach(apps) { app in
+                        CardView(app: app, column: column)
+                    }
+                    if apps.isEmpty && total > 0 {
+                        Text(loc("Sin coincidencias"))
+                            .font(.caption).foregroundColor(.secondary)
+                            .padding(.top, 12)
+                    }
                 }
+                .padding(8)
             }
-            .padding(8)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
+        .clipShape(RoundedRectangle(cornerRadius: 8))
         .background(RoundedRectangle(cornerRadius: 8).fill(Color(NSColor.textBackgroundColor)))
         .overlay(RoundedRectangle(cornerRadius: 8).stroke(isTargeted ? accent : .clear, lineWidth: 2))
         .onDrop(of: [.text], isTargeted: $isTargeted) { providers in

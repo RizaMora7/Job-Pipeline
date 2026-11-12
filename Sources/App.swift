@@ -56,6 +56,13 @@ final class AppStore: ObservableObject {
     @Published var language: AppLanguage = L10n.lang
     @Published var dueSoonDays: Int = 2
     
+    // Board search & filters (session-only, not persisted)
+    @Published var searchText = ""
+    @Published var filterPlatform: String?
+    @Published var filterMinNota: Double?
+    @Published var filterModalidad: Modalidad?
+    @Published var filterFollowUp = false
+    
     enum ViewMode { case board, review }
     enum AppAppearance: String, CaseIterable {
         case system = "Automático", light = "Claro", dark = "Oscuro"
@@ -203,6 +210,52 @@ final class AppStore: ObservableObject {
     func apps(in column: PipelineColumn) -> [Application] {
         applications.filter { $0.estado == column }
     }
+    
+    // MARK: Search & filters
+    
+    var isFiltering: Bool {
+        !searchText.trimmingCharacters(in: .whitespaces).isEmpty ||
+        filterPlatform != nil || filterMinNota != nil || filterModalidad != nil || filterFollowUp
+    }
+    
+    func clearFilters() {
+        searchText = ""
+        filterPlatform = nil
+        filterMinNota = nil
+        filterModalidad = nil
+        filterFollowUp = false
+    }
+    
+    /// Platforms that actually appear on cards (plus the selected one), for the filter menu.
+    var platformsInUse: [String] {
+        var set = Set(applications.map { $0.plataforma }.filter { !$0.isEmpty })
+        if let p = filterPlatform { set.insert(p) }
+        return set.sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
+    }
+    
+    /// Case- and accent-insensitive match; every word typed must appear somewhere in the card.
+    func matchesFilters(_ app: Application) -> Bool {
+        if let p = filterPlatform, app.plataforma != p { return false }
+        if let n = filterMinNota, (app.jobFitNota ?? -1) < n { return false }
+        if let m = filterModalidad, app.modalidad != m { return false }
+        if filterFollowUp, followUpStatus(for: app) == .none { return false }
+        
+        let words = searchText.split(whereSeparator: { $0.isWhitespace })
+        guard !words.isEmpty else { return true }
+        let haystack = [app.empresa, app.cargo, app.plataforma, app.pais, app.seniority,
+                        app.tags, app.siguienteAccion, app.motivo]
+            .joined(separator: " ")
+            .folding(options: [.caseInsensitive, .diacriticInsensitive], locale: nil)
+        return words.allSatisfy {
+            haystack.contains($0.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: nil))
+        }
+    }
+    
+    func visibleApps(in column: PipelineColumn) -> [Application] {
+        applications.filter { $0.estado == column && matchesFilters($0) }
+    }
+    
+    var visibleCount: Int { applications.filter(matchesFilters).count }
     
     // Weekly review helpers
     var overdueFollowUps: [Application] {
